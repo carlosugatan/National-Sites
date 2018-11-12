@@ -2,12 +2,69 @@
 ## Skeleton for Project 2, Fall 2018
 ## ~~~ modify this file, but don't rename it ~~~
 from secrets import google_places_key
+from bs4 import BeautifulSoup
+from alternate_advanced_caching import Cache
+import requests
+from datetime import datetime
 
 ## you can, and should add to and modify this class any way you see fit
 ## you can add attributes and modify the __init__ parameters,
 ##   as long as tests still pass
 ##
 ## the starter code is here just to make the tests run (and fail)
+
+
+# I'm thinking how I can scrape the data:
+# So I know the link on nps.gov for each state has the same format, except for the state abbvr
+# I don't think using Scrapy would be necessary since I'm not that familiar with it, but from what we've learned so far,
+# it outputs a file, which I don't want to deal with right now.
+# I searched up how to scrape multiple websites using BeautifulSoup and it's almost the same as listing the websites on a Scrapy spider.
+# I just got the idea that I wouldn't need to list all the websites because it would depend on the user input!!
+# I would just need to create a base url with a variable that will change depending on user input
+
+# My goal right now is to implement caching and see if I can access the website properly.
+
+##############
+# SETTING UP #
+##############
+
+
+def create_id(site, topic):
+    return "{}_{}_{}.json".format(site, topic, str(datetime.now()).replace(' ', ''))
+
+def process(response):
+    ## use the `response` to create a BeautifulSoup object
+    soup = BeautifulSoup(response, 'html.parser')
+
+    # Name
+    name_lst = []
+    nps_name = soup.find_all(attrs={"class": "col-md-9 col-sm-9 col-xs-12 table-cell list_left"})
+    for name in nps_name:
+        name_lst.append(name.h3.text)
+    # print(name_lst)
+
+    # Type
+    type_lst = []
+    nps_type = soup.find_all(attrs={"class": "col-md-9 col-sm-9 col-xs-12 table-cell list_left"})
+    for type in nps_type:
+        type_lst.append(type.h2.text)
+    # print(type_lst)
+
+    # Description
+    desc_lst = []
+    nps_desc = soup.find_all(attrs={"class": "col-md-9 col-sm-9 col-xs-12 table-cell list_left"})
+    for desc in nps_desc:
+        desc_lst.append(desc.p.text)
+    # print(desc_lst)
+
+    # URL
+    url_lst = []
+    nps_url = soup.find_all(attrs={"class": "col-md-9 col-sm-9 col-xs-12 table-cell list_left"})
+    for url in nps_url:
+        url_lst.append("https://www.nps.gov" + url.h3.a.get('href')+"index.htm")
+    # print(url_lst)
+
+
 class NationalSite():
     def __init__(self, type, name, desc, url=None):
         self.type = type
@@ -20,6 +77,7 @@ class NationalSite():
         self.address_city = 'Smallville'
         self.address_state = 'KS'
         self.address_zip = '11111'
+
 
 ## you can, and should add to and modify this class any way you see fit
 ## you can add attributes and modify the __init__ parameters,
@@ -64,3 +122,24 @@ def plot_sites_for_state(state_abbr):
 ## side effects: launches a plotly page in the web browser
 def plot_nearby_for_site(site_object):
     pass
+
+###################
+#     CONFIG      #
+###################
+cache_file = "nps.json"
+site="nps.gov"
+topic="National SItes"
+cache = Cache(cache_file)
+base = "https://www.nps.gov/state/mi/index.htm"
+
+
+#######################
+#     RUN PROGRAM     #
+#######################
+UID = create_id(site, topic)
+response = cache.get(UID)
+if response == None:
+    response = requests.get(base).text
+    cache.set(UID, response, 1)
+
+process(response)
