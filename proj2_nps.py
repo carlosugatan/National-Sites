@@ -14,16 +14,6 @@ from datetime import datetime
 ## the starter code is here just to make the tests run (and fail)
 
 
-# I'm thinking how I can scrape the data:
-# So I know the link on nps.gov for each state has the same format, except for the state abbvr
-# I don't think using Scrapy would be necessary since I'm not that familiar with it, but from what we've learned so far,
-# it outputs a file, which I don't want to deal with right now.
-# I searched up how to scrape multiple websites using BeautifulSoup and it's almost the same as listing the websites on a Scrapy spider.
-# I just got the idea that I wouldn't need to list all the websites because it would depend on the user input!!
-# I would just need to create a base url with a variable that will change depending on user input
-
-# My goal right now is to implement caching and see if I can access the website properly.
-
 ##############
 # SETTING UP #
 ##############
@@ -36,19 +26,21 @@ def process(response):
     ## use the `response` to create a BeautifulSoup object
     soup = BeautifulSoup(response, 'html.parser')
 
+
+
     # Name
     name_lst = []
     nps_name = soup.find_all(attrs={"class": "col-md-9 col-sm-9 col-xs-12 table-cell list_left"})
     for name in nps_name:
         name_lst.append(name.h3.text)
-    # print(name_lst)
+    print(name_lst)
 
     # Type
     type_lst = []
     nps_type = soup.find_all(attrs={"class": "col-md-9 col-sm-9 col-xs-12 table-cell list_left"})
     for type in nps_type:
         type_lst.append(type.h2.text)
-    # print(type_lst)
+    print(type_lst)
 
     # Description
     desc_lst = []
@@ -62,8 +54,12 @@ def process(response):
     nps_url = soup.find_all(attrs={"class": "col-md-9 col-sm-9 col-xs-12 table-cell list_left"})
     for url in nps_url:
         url_lst.append("https://www.nps.gov" + url.h3.a.get('href')+"index.htm")
-    # print(url_lst)
+    print(url_lst)
 
+    for urls in url_lst:
+        response = requests.get(urls)
+        soup2 = BeautifulSoup(response.content, "html.parser")
+        print(soup2.title.text)
 
 class NationalSite():
     def __init__(self, type, name, desc, url=None):
@@ -126,11 +122,15 @@ def plot_nearby_for_site(site_object):
 ###################
 #     CONFIG      #
 ###################
+state_abbr = input("Please enter state abbr: ").lower()
 cache_file = "nps.json"
 site="nps.gov"
-topic="National SItes"
+topic="National Sites"
 cache = Cache(cache_file)
-base = "https://www.nps.gov/state/mi/index.htm"
+base_org = "https://www.nps.gov/state/%%/index.htm"
+base = base_org.replace('%%', state_abbr)
+print(base)
+
 
 
 #######################
