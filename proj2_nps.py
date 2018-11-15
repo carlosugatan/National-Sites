@@ -26,21 +26,19 @@ def process(response):
     ## use the `response` to create a BeautifulSoup object
     soup = BeautifulSoup(response, 'html.parser')
 
-
-
     # Name
     name_lst = []
     nps_name = soup.find_all(attrs={"class": "col-md-9 col-sm-9 col-xs-12 table-cell list_left"})
     for name in nps_name:
         name_lst.append(name.h3.text)
-    print(name_lst)
+    # print(name_lst)
 
     # Type
     type_lst = []
     nps_type = soup.find_all(attrs={"class": "col-md-9 col-sm-9 col-xs-12 table-cell list_left"})
     for type in nps_type:
         type_lst.append(type.h2.text)
-    print(type_lst)
+    # print(type_lst)
 
     # Description
     desc_lst = []
@@ -54,12 +52,32 @@ def process(response):
     nps_url = soup.find_all(attrs={"class": "col-md-9 col-sm-9 col-xs-12 table-cell list_left"})
     for url in nps_url:
         url_lst.append("https://www.nps.gov" + url.h3.a.get('href')+"index.htm")
-    print(url_lst)
+    # print(url_lst)
 
+    ## Not sure if I'm caching this
     for urls in url_lst:
-        response = requests.get(urls)
-        soup2 = BeautifulSoup(response.content, "html.parser")
-        print(soup2.title.text)
+        response2 = requests.get(urls)
+        if response2 == None:
+            response2 = requests.get(urls).text
+            cache.set(UID, response2, 1)
+            process(response2)
+        soup2 = BeautifulSoup(response2.content, "html.parser")
+
+        ## Address Street
+        address_street = soup2.find(attrs={"class": "street-address"})
+        # print(address_street.string)
+
+        ## Address City
+        address_city = soup2.find(attrs={"itemprop": "addressLocality"})
+        # print(address_city.string)
+
+        ## Address State
+        address_state = soup2.find(attrs={"itemprop": "addressRegion"})
+        # print(address_state.string)
+
+        ## Address ZIP
+        address_zip = soup2.find(attrs={"itemprop": "postalCode"})
+        print(address_zip.string)
 
 class NationalSite():
     def __init__(self, type, name, desc, url=None):
@@ -129,8 +147,6 @@ topic="National Sites"
 cache = Cache(cache_file)
 base_org = "https://www.nps.gov/state/%%/index.htm"
 base = base_org.replace('%%', state_abbr)
-print(base)
-
 
 
 #######################
