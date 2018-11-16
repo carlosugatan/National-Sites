@@ -42,36 +42,47 @@ def process(response):
         # URL
         url = "https://www.nps.gov"+container.h3.a.get('href')+"index.htm"
         url_lst.append(url)
-        # print(url)
+        print(url)
     # print(url_lst)
 
-    # # Not sure if I'm caching this
-    # for urls in url_lst:
-    #     response2 = requests.get(urls)
-    #     if response2 == None:
-    #         response2 = requests.get(urls).text
-    #         cache.set(UID, response2, 1)
-    #         process(response2)
-    #     soup2 = BeautifulSoup(response2.content, "html.parser")
-    #
-    #     ## Address Street
-    #     address_street = soup2.find(attrs={"class": "street-address"})
-    #     # print(address_street.string)
-    #
-    #     ## Address City
-    #     address_city = soup2.find(attrs={"itemprop": "addressLocality"})
-    #     # print(address_city.string)
-    #
-    #     ## Address State
-    #     address_state = soup2.find(attrs={"itemprop": "addressRegion"})
-    #     # print(address_state.string)
-    #
-    #     ## Address ZIP
-    #     address_zip = soup2.find(attrs={"itemprop": "postalCode"})
-    #     # print(address_zip.string)
+    for urls in url_lst:
+        cache_file = "nps_address.json"
+        site="nps.gov"
+        topic="National Sites Address"
+        cache_address = Cache(cache_file)
 
-        national_sites = NationalSite(type, name, desc, url)
-        name_lst.append(name)
+        UID = create_id(site, topic)
+        response2 = cache.get(UID)
+        if response2 == None:
+            response2 = requests.get(urls).text
+            cache_address.set(UID, response2, 1)
+
+        process(response2)
+        soup2 = BeautifulSoup(response2, "html.parser")
+
+        # ## Address Street
+        # address_street = soup2.find(attrs={"itemprop": "streetAddress"})
+        # print(address_street.string)
+
+        ## Address City
+        address_city = soup2.find(attrs={"itemprop": "addressLocality"})
+        print(address_city.string)
+
+        # ## Address State
+        # address_state = soup2.find(attrs={"itemprop": "addressRegion"})
+        # print(address_state.string)
+        #
+        # ## Address ZIP
+        # address_zip = soup2.find(attrs={"itemprop": "postalCode"})
+        # print(address_zip.string)
+        #
+
+
+
+
+        # national_sites = NationalSite(type, name, desc, url)
+        # name_lst.append(name)
+    # print(national_sites)
     return name_lst
 
 ## you can, and should add to and modify this class any way you see fit
@@ -96,6 +107,7 @@ class NationalSite():
 
     def __str__(self):
         # return "{} ({}): {} {} {} {}".format(self.name, self.type, self.address_street, self.address_city, self.address_state,self.address_zip)
+        # return "{} ({}) {}".format(self.name, self.type, self.address_street)
         return "{} ({})".format(self.name, self.type)
 
 ## you can, and should add to and modify this class any way you see fit
@@ -168,5 +180,5 @@ if response == None:
 
 process(response)
 
-xy = get_sites_for_state(state_abbr)
-print(type(xy))
+# xy = get_sites_for_state(state_abbr)
+# print(xy)
