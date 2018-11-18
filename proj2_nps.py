@@ -4,12 +4,13 @@
 from secrets import google_places_key
 from bs4 import BeautifulSoup
 from alternate_advanced_caching import Cache
+import json
 import requests
 from datetime import datetime
 
-##############
-# SETTING UP #
-##############
+######################
+#      SCRAPING      #
+######################
 
 def create_id(site, topic):
     return "{}_{}_{}.json".format(site, topic, str(datetime.now()).replace(' ', ''))
@@ -29,60 +30,97 @@ def process(response):
         name = container.h3.text
         name_lst.append(name)
         # print(name)
+    #
+    #     # Type
+    #     type = container.h2.text
+    #     # print(type)
+    #
+    #     # Description
+    #     process.desc = container.p.text
+    #     # print(desc)
+    #
+    #     # URL
+    #     process.url = "https://www.nps.gov"+container.h3.a.get('href')+"index.htm"
+    #     url_lst.append(process.url)
+    #     # print(url)
+    #
+    #
+    #     for urls in url_lst:
+    #         cache_file = "nps_address.json"
+    #         site="nps.gov"
+    #         topic="National Sites Address"
+    #         cache_address = Cache(cache_file)
+    #
+    #         UID = create_id(site, topic)
+    #         response2 = cache_address.get(UID)
+    #         if response2 == None:
+    #             response2 = requests.get(urls).text
+    #             cache_address.set(UID, response2, 1)
+    #         # get_address(response2)
+    #
+    #         soup2 = BeautifulSoup(response2, "html.parser")
+    #
+    #         # ## Address Street
+    #         address_street_fndr = soup2.find(attrs={"itemprop": "streetAddress"})
+    #         process.address_street = address_street_fndr.text
+    #         # print(process.address_street)
+    #
+    #         ## Address City
+    #         address_city_fndr = soup2.find(attrs={"itemprop": "addressLocality"})
+    #         process.address_city = address_city_fndr.text
+    #         # print(process.address_city)
+    #
+    #         # ## Address State
+    #         address_state_fndr = soup2.find(attrs={"itemprop": "addressRegion"})
+    #         process.address_state = address_state_fndr.text
+    #         # print(process.address_state)
+    #
+    #         # ## Address ZIP
+    #         address_zip_fndr = soup2.find(attrs={"itemprop": "postalCode"})
+    #         process.address_zip = address_zip_fndr.text
+    #         # print(process.address_zip)
+    #
+    #         national_sites = NationalSite(type, name)
+    #     # print(national_sites)
+    #             # name_lst.append(name)
+    # # return name_lst
 
-        # Type
-        type = container.h2.text
-        # print(type)
 
-        # Description
-        process.desc = container.p.text
-        # print(desc)
+######################
+#  GOOGLE PLACES API #
+######################
 
-        # URL
-        process.url = "https://www.nps.gov"+container.h3.a.get('href')+"index.htm"
-        url_lst.append(process.url)
-        # print(url)
+CACHE_FILE = "google_places.json"
+c = Cache(CACHE_FILE)
 
+def params_unique_combination(baseurl, params_d, private_keys=["api_key"]):
+    alphabetized_keys = sorted(params_d.keys())
+    res = []
+    for k in alphabetized_keys:
+        if k not in private_keys:
+            res.append("{}={}".format(k, params_d[k]))
+    return baseurl + "&".join(res)
 
-        for urls in url_lst:
-            cache_file = "nps_address.json"
-            site="nps.gov"
-            topic="National Sites Address"
-            cache_address = Cache(cache_file)
+def get_places_data(location, radius=10000):
+    # gets nearby location
+    baseurl = "https://maps.googleapis.com/maps/api/place/nearbysearch/json?"
+    params_diction = {}
+    params_diction["location"] = location
+    params_diction["radius"] = radius
+    params_diction["key"] = google_places_key
+    unique_rep = params_unique_combination(baseurl, params_diction,private_keys=["key"])
+    print(unique_rep)
+    data = c.get(unique_rep)
+    if data:
+        print("Data in cache")
+        return data
+    else:
+        resp = requests.get(baseurl, params=params_diction)
+        obj = json.loads(resp.text)
+        c.set(unique_rep, obj, 10)
+        return obj
 
-            UID = create_id(site, topic)
-            response2 = cache_address.get(UID)
-            if response2 == None:
-                response2 = requests.get(urls).text
-                cache_address.set(UID, response2, 1)
-            # get_address(response2)
-
-            soup2 = BeautifulSoup(response2, "html.parser")
-
-            # ## Address Street
-            address_street_fndr = soup2.find(attrs={"itemprop": "streetAddress"})
-            process.address_street = address_street_fndr.text
-            # print(process.address_street)
-
-            ## Address City
-            address_city_fndr = soup2.find(attrs={"itemprop": "addressLocality"})
-            process.address_city = address_city_fndr.text
-            # print(process.address_city)
-
-            # ## Address State
-            address_state_fndr = soup2.find(attrs={"itemprop": "addressRegion"})
-            process.address_state = address_state_fndr.text
-            # print(process.address_state)
-
-            # ## Address ZIP
-            address_zip_fndr = soup2.find(attrs={"itemprop": "postalCode"})
-            process.address_zip = address_zip_fndr.text
-            # print(process.address_zip)
-
-            national_sites = NationalSite(type, name)
-        print(national_sites)
-                # name_lst.append(name)
-    # return name_lst
+# restaurant = get_places_data("44.778410,-117.827940", "10000")
 
 
 class NationalSite():
@@ -92,7 +130,6 @@ class NationalSite():
         self.name = name
         self.description = process.desc
         self.url = process.url
-
 
         self.address_street = process.address_street
         self.address_city = process.address_city
@@ -105,14 +142,12 @@ class NationalSite():
         # return "{} ({})".format(self.name, self.type)
 
 
-## you can, and should add to and modify this class any way you see fit
-## you can add attributes and modify the __init__ parameters,
-##   as long as tests still pass
-##
-## the starter code is here just to make the tests run (and fail)
 class NearbyPlace():
     def __init__(self, name):
         self.name = name
+
+    def __str__(self):
+        return "{}".format(self.name)
 
 ## Must return the list of NationalSites for the specified state
 ## param: the 2-letter state abbreviation, lowercase
