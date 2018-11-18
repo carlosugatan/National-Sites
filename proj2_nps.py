@@ -16,8 +16,6 @@ def create_id(site, topic):
 
 def process(response):
     name_lst = []
-    type_lst = []
-    desc_lst = []
     url_lst = []
 
     ## use the `response` to create a BeautifulSoup object
@@ -29,6 +27,7 @@ def process(response):
 
         # Name
         name = container.h3.text
+        name_lst.append(name)
         # print(name)
 
         # Type
@@ -36,79 +35,75 @@ def process(response):
         # print(type)
 
         # Description
-        desc = container.p.text
+        process.desc = container.p.text
         # print(desc)
 
         # URL
-        url = "https://www.nps.gov"+container.h3.a.get('href')+"index.htm"
-        url_lst.append(url)
-        print(url)
-    # print(url_lst)
-
-    for urls in url_lst:
-        cache_file = "nps_address.json"
-        site="nps.gov"
-        topic="National Sites Address"
-        cache_address = Cache(cache_file)
-
-        UID = create_id(site, topic)
-        response2 = cache.get(UID)
-        if response2 == None:
-            response2 = requests.get(urls).text
-            cache_address.set(UID, response2, 1)
-
-        process(response2)
-        soup2 = BeautifulSoup(response2, "html.parser")
-
-        # ## Address Street
-        # address_street = soup2.find(attrs={"itemprop": "streetAddress"})
-        # print(address_street.string)
-
-        ## Address City
-        address_city = soup2.find(attrs={"itemprop": "addressLocality"})
-        print(address_city.string)
-
-        # ## Address State
-        # address_state = soup2.find(attrs={"itemprop": "addressRegion"})
-        # print(address_state.string)
-        #
-        # ## Address ZIP
-        # address_zip = soup2.find(attrs={"itemprop": "postalCode"})
-        # print(address_zip.string)
-        #
+        process.url = "https://www.nps.gov"+container.h3.a.get('href')+"index.htm"
+        url_lst.append(process.url)
+        # print(url)
 
 
+        for urls in url_lst:
+            cache_file = "nps_address.json"
+            site="nps.gov"
+            topic="National Sites Address"
+            cache_address = Cache(cache_file)
+
+            UID = create_id(site, topic)
+            response2 = cache_address.get(UID)
+            if response2 == None:
+                response2 = requests.get(urls).text
+                cache_address.set(UID, response2, 1)
+            # get_address(response2)
+
+            soup2 = BeautifulSoup(response2, "html.parser")
+
+            # ## Address Street
+            address_street_fndr = soup2.find(attrs={"itemprop": "streetAddress"})
+            process.address_street = address_street_fndr.text
+            # print(process.address_street)
+
+            ## Address City
+            address_city_fndr = soup2.find(attrs={"itemprop": "addressLocality"})
+            process.address_city = address_city_fndr.text
+            # print(process.address_city)
+
+            # ## Address State
+            address_state_fndr = soup2.find(attrs={"itemprop": "addressRegion"})
+            process.address_state = address_state_fndr.text
+            # print(process.address_state)
+
+            # ## Address ZIP
+            address_zip_fndr = soup2.find(attrs={"itemprop": "postalCode"})
+            process.address_zip = address_zip_fndr.text
+            # print(process.address_zip)
+
+            national_sites = NationalSite(type, name)
+        print(national_sites)
+                # name_lst.append(name)
+    # return name_lst
 
 
-        # national_sites = NationalSite(type, name, desc, url)
-        # name_lst.append(name)
-    # print(national_sites)
-    return name_lst
-
-## you can, and should add to and modify this class any way you see fit
-## you can add attributes and modify the __init__ parameters,
-##   as long as tests still pass
-##
-## the starter code is here just to make the tests run (and fail)
 class NationalSite():
-    def __init__(self, type, name, desc, url=None):
+    def __init__(self, type, name):
     # def __init__(self, name):
         self.type = type
         self.name = name
-        self.description = desc
-        self.url = url
-        # process(response)
+        self.description = process.desc
+        self.url = process.url
 
-        # needs to be changed, obvi.
-        # self.address_street = address_street
-        # self.address_city = address_city
-        # self.address_state = address_state
-        # self.address_zip = address_zip
+
+        self.address_street = process.address_street
+        self.address_city = process.address_city
+        self.address_state = process.address_state
+        self.address_zip = process.address_zip
 
     def __str__(self):
-        # return "{} ({}): {} {} {} {}".format(self.name, self.type, self.address_street, self.address_city, self.address_state,self.address_zip)
-        # return "{} ({}) {}".format(self.name, self.type, self.address_street)
-        return "{} ({})".format(self.name, self.type)
+        return "{} ({}): {} {}, {} {}".format(self.name, self.type, self.address_street, self.address_city, self.address_state,self.address_zip)
+        # return "{} ({}) {}".format(self.name, self.type, self.address_city)
+        # return "{} ({})".format(self.name, self.type)
+
 
 ## you can, and should add to and modify this class any way you see fit
 ## you can add attributes and modify the __init__ parameters,
@@ -127,6 +122,8 @@ class NearbyPlace():
 ##        for the state at nps.gov
 def get_sites_for_state(state_abbr):
     return process(response)
+    # print(name_lst)
+    # return process(response)
     # return []
 
 
@@ -177,8 +174,8 @@ response = cache.get(UID)
 if response == None:
     response = requests.get(base).text
     cache.set(UID, response, 1)
-
 process(response)
+
 
 # xy = get_sites_for_state(state_abbr)
 # print(xy)
