@@ -105,9 +105,8 @@ def params_unique_combination(baseurl, params_d, private_keys=["api_key"]):
             res.append("{}={}".format(k, params_d[k]))
     return baseurl + "&".join(res)
 
-def google_coordinates(input_raw, inputtype="textquery", fields="geometry"):
+def google_coordinates(input, inputtype="textquery", fields="formatted_address,geometry"):
     # gets coordinates
-    input = input_raw.replace(" ", "%20")
     baseurl = "https://maps.googleapis.com/maps/api/place/findplacefromtext/json?"
     params_diction = OrderedDict({})
     params_diction["input"] = input
@@ -146,7 +145,7 @@ def google_nearby_places(location, radius=10000):
         return obj
 
 
-# restaurant = google_nearby_places("44.778410,-117.827940", "10000")
+# restaurant = google_nearby_places("-33.8599358,151.2090295")
 restaurant = google_coordinates("Museum of Contemporary Art Australia")
 
 
