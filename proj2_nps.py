@@ -7,6 +7,7 @@ from alternate_advanced_caching import Cache
 import json
 import requests
 from datetime import datetime
+from collections import OrderedDict
 
 ######################
 #      SCRAPING      #
@@ -90,21 +91,45 @@ def process(response):
 #  GOOGLE PLACES API #
 ######################
 
-CACHE_FILE = "google_places.json"
-c = Cache(CACHE_FILE)
+CACHE_FILE1 = "google_places.json"
+CACHE_FILE2 = "google_coordinates.json"
+c = Cache(CACHE_FILE1)
+c2 = Cache(CACHE_FILE2)
 
 def params_unique_combination(baseurl, params_d, private_keys=["api_key"]):
-    alphabetized_keys = sorted(params_d.keys())
+    # HTTPS://MAPS.GOOGLEAPIS.COM/MAPS/API/PLACE/NEARBYSEARCH/JSON?LOCATION=44.778410, -117.827940&RADIUS=10000
+    alphabetized_keys = OrderedDict(params_d)
     res = []
     for k in alphabetized_keys:
         if k not in private_keys:
             res.append("{}={}".format(k, params_d[k]))
     return baseurl + "&".join(res)
 
-def get_places_data(location, radius=10000):
-    # gets nearby location
+def google_coordinates(input_raw, inputtype="textquery", fields="geometry"):
+    # gets coordinates
+    input = input_raw.replace(" ", "%20")
+    baseurl = "https://maps.googleapis.com/maps/api/place/findplacefromtext/json?"
+    params_diction = OrderedDict({})
+    params_diction["input"] = input
+    params_diction["inputtype"] = inputtype
+    params_diction["fields"] = fields
+    params_diction["key"] = google_places_key
+    unique_rep = params_unique_combination(baseurl, params_diction,private_keys=["key"])
+    print(unique_rep)
+    data = c2.get(unique_rep)
+    if data:
+        print("Data in cache")
+        return data
+    else:
+        resp = requests.get(baseurl, params=params_diction)
+        obj = json.loads(resp.text)
+        c2.set(unique_rep, obj, 10)
+        return obj
+
+def google_nearby_places(location, radius=10000):
+    # gets nearby location with default radius of 10km
     baseurl = "https://maps.googleapis.com/maps/api/place/nearbysearch/json?"
-    params_diction = {}
+    params_diction = OrderedDict({})
     params_diction["location"] = location
     params_diction["radius"] = radius
     params_diction["key"] = google_places_key
@@ -120,7 +145,9 @@ def get_places_data(location, radius=10000):
         c.set(unique_rep, obj, 10)
         return obj
 
-# restaurant = get_places_data("44.778410,-117.827940", "10000")
+
+# restaurant = google_nearby_places("44.778410,-117.827940", "10000")
+restaurant = google_coordinates("Museum of Contemporary Art Australia")
 
 
 class NationalSite():
