@@ -140,6 +140,7 @@ def google_coordinates(input, inputtype="textquery", fields="formatted_address,g
         return obj
 
 def google_nearby_places(location, radius=10000):
+    nearby_places_lst = []
     # gets nearby location with default radius of 10km
     baseurl = "https://maps.googleapis.com/maps/api/place/nearbysearch/json?"
     params_diction = OrderedDict({})
@@ -154,8 +155,9 @@ def google_nearby_places(location, radius=10000):
         with open ("google_places.json", 'r') as f:
             key_dict = unique_rep.upper()
             nearbyplaces = json.load(f)
-            print("testing")
-            # print(nearbyplaces[key_dict]["values"]["results"])
+            for i in range(len(nearbyplaces[key_dict]["values"]["results"])):
+                nearby_places_lst.append(nearbyplaces[key_dict]["values"]["results"][i]["name"])
+            # print(nearby_places_lst)
         return data
     else:
         resp = requests.get(baseurl, params=params_diction)
@@ -275,8 +277,8 @@ process(response)
 
 
 ## TESTING GET NEARBY PLACES
-z = get_nearby_places(NationalSite("National Lakeshore", "Sleeping Bear Dunes"))
-print(z)
+# z = get_nearby_places(NationalSite("National Lakeshore", "Sleeping Bear Dunes"))
+# print(z)
 
 
 
