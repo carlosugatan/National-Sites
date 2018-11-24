@@ -9,6 +9,7 @@ import requests
 from datetime import datetime
 from collections import OrderedDict
 import plotly
+import plotly.plotly as py
 
 ######################
 #      SCRAPING      #
@@ -131,9 +132,9 @@ def google_coordinates(input, inputtype="textquery", fields="formatted_address,g
             lng = str(coordinates[key_dict]["values"]["candidates"][0]["geometry"]["location"]["lng"])
             lat = str(coordinates[key_dict]["values"]["candidates"][0]["geometry"]["location"]["lat"])
             google_coordinates.location = lat+","+lng
-            print(google_coordinates.location)
+            # print(google_coordinates.location)
         # print("Data in cache")
-        return google_coordinates.location
+        return lat,lng,google_coordinates.location
     else:
         resp = requests.get(baseurl, params=params_diction)
         obj = json.loads(resp.text)
@@ -158,8 +159,8 @@ def google_nearby_places(location, radius=10000):
             nearbyplaces = json.load(f)
             for i in range(len(nearbyplaces[key_dict]["values"]["results"])):
                 nearby_places_lst.append(nearbyplaces[key_dict]["values"]["results"][i]["name"])
-            print(nearby_places_lst)
-        return data
+            # print(nearby_places_lst)
+        return nearby_places_lst
     else:
         resp = requests.get(baseurl, params=params_diction)
         obj = json.loads(resp.text)
@@ -223,8 +224,7 @@ def get_sites_for_state(state_abbr):
 ##          return an empty list
 def get_nearby_places(national_site):
     google_coordinates(national_site)
-    # google_nearby_places(google_coordinates.location)
-    # return []
+    google_nearby_places(google_coordinates.location)
 
 ## Must plot all of the NationalSites listed for the state on nps.gov
 ## Note that some NationalSites might actually be located outside the state.
@@ -234,23 +234,178 @@ def get_nearby_places(national_site):
 ## returns: nothing
 ## side effects: launches a plotly page in the web browser
 def plot_sites_for_state(state_abbr):
+    lat_vals = []
+    lon_vals = []
+    text_vals = []
     national_sites_list = process(response)
     for site in national_sites_list:
         try:
             full_site_name = site.name + " " + site.type
             site_coord = google_coordinates(full_site_name)
-            print(site_coord)
+            lat_vals.append(site_coord[0])
+            lon_vals.append(site_coord[1])
+            text_vals.append(full_site_name)
+            # print(site_coord)
         except:
             national_sites_list.remove(site)
-            print("Coordinates not found")
+            # print("Coordinates not found")
+
+    min_lat = 10000
+    max_lat = -10000
+    min_lon = 10000
+    max_lon = -10000
+
+    for str_v in lat_vals:
+        v = float(str_v)
+        if v < min_lat:
+            min_lat = v
+        if v > max_lat:
+            max_lat = v
+    for str_v in lon_vals:
+        v = float(str_v)
+        if v < min_lon:
+            min_lon = v
+        if v > max_lon:
+            max_lon = v
+
+    lat_axis = [min_lat -1, max_lat + 1]
+    lon_axis = [min_lon - 1, max_lon + 1]
+
+    center_lat = (max_lat+min_lat) / 2
+    center_lon = (max_lon+min_lon) / 2
+
+    data = [ dict(
+            type = 'scattergeo',
+            locationmode = 'USA-states',
+            lon = lon_vals,
+            lat = lat_vals,
+            text = text_vals,
+            mode = 'markers',
+            marker = dict(
+                size = 8,
+                symbol = 'star',
+            ))]
+
+    layout = dict(
+            title = 'US National Sites<br>(Hover for National Site names)',
+            geo = dict(
+                scope='usa',
+                projection=dict( type='albers usa' ),
+                lataxis = dict(range = lat_axis),
+                lonaxis = dict(range = lon_axis),
+                showland = True,
+                landcolor = "rgb(250, 250, 250)",
+                subunitcolor = "rgb(100, 217, 217)",
+                center = {'lat': center_lat, 'lon': center_lon },
+                countrycolor = "rgb(217, 100, 217)",
+                countrywidth = 3,
+                subunitwidth = 3
+            ),
+        )
+
+    fig = dict( data=data, layout=layout )
+    py.plot( fig, validate=False, filename='testing-national-sites' )
 
 
 ## Must plot up to 20 of the NearbyPlaces found using the Google Places API
 ## param: the NationalSite around which to search
 ## returns: nothing
 ## side effects: launches a plotly page in the web browser
-def plot_nearby_for_site(site_object):
-    pass
+# def plot_nearby_for_site(site_object):
+def plot_nearby_for_site(national_site):
+    big_lat_vals = []
+    big_lon_vals = []
+    big_text_vals= []
+    small_lat_vals = []
+    small_lon_vals = []
+    small_text_vals = []
+    init_site = google_coordinates(national_site)
+    big_lat_vals.append(init_site[0])
+    big_lon_vals.append(init_site[1])
+    big_text_vals.append(national_site)
+    nearby_places = google_nearby_places(google_coordinates.location)
+    for places in nearby_places:
+        try:
+            nearby_coord = google_coordinates(places)
+            small_lat_vals.append(nearby_coord[0])
+            small_lon_vals.append(nearby_coord[1])
+            small_text_vals.append(places)
+            # print(small_lat_vals)
+        except:
+            nearby_places.remove(places)
+            # print("Coordinates not found")
+
+    min_lat = 10000
+    max_lat = -10000
+    min_lon = 10000
+    max_lon = -10000
+
+    for str_v in small_lat_vals:
+        v = float(str_v)
+        if v < min_lat:
+            min_lat = v
+        if v > max_lat:
+            max_lat = v
+    for str_v in small_lon_vals:
+        v = float(str_v)
+        if v < min_lon:
+            min_lon = v
+        if v > max_lon:
+            max_lon = v
+
+    lat_axis = [min_lat -1, max_lat + 1]
+    lon_axis = [min_lon - 1, max_lon + 1]
+
+    center_lat = (max_lat+min_lat) / 2
+    center_lon = (max_lon+min_lon) / 2
+
+    trace1 = dict(
+            type = 'scattergeo',
+            locationmode = 'USA-states',
+            lon = big_lon_vals,
+            lat = big_lat_vals,
+            text = big_text_vals,
+            mode = 'markers',
+            marker = dict(
+                size = 15,
+                symbol = 'star',
+                color = "red"
+            ))
+
+    trace2 = dict(
+            type = 'scattergeo',
+            locationmode = 'USA-states',
+            lon = small_lon_vals,
+            lat = small_lat_vals,
+            text = small_text_vals,
+            mode = 'markers',
+            marker = dict(
+                size = 4,
+                symbol = 'circle',
+                color = "blue"
+            ))
+
+    data = [trace1, trace2]
+
+    layout = dict(
+            title = 'US National Sites<br>(Hover for National Site names)',
+            geo = dict(
+                scope='usa',
+                projection=dict( type='albers usa' ),
+                lataxis = dict(range = lat_axis),
+                lonaxis = dict(range = lon_axis),
+                showland = True,
+                landcolor = "rgb(250, 250, 250)",
+                subunitcolor = "rgb(100, 217, 217)",
+                center = {'lat': center_lat, 'lon': center_lon },
+                countrycolor = "rgb(217, 100, 217)",
+                countrywidth = 3,
+                subunitwidth = 3
+            ),
+        )
+
+    fig = dict( data=data, layout=layout )
+    py.plot( fig, validate=False, filename='national-sites-nearby-places' )
 
 
 ###################
@@ -273,7 +428,7 @@ response = cache.get(UID)
 if response == None:
     response = requests.get(base).text
     cache.set(UID, response, 1)
-process(response)
+# process(response)
 
 
 ## TESTING GET SITES FOR STATE
@@ -290,31 +445,6 @@ process(response)
 # z = get_nearby_places(NationalSite("National Monument", "Fort Stanwix"))
 # print(z)
 
-plot_sites_for_state(state_abbr)
+# plot_sites_for_state(state_abbr)
 
-
-## THIS IS JUNK BUT I'LL KEEP IT HERE
-# with open ("nps.json", 'r') as f2:
-#     nps_json = json.load(f2)
-#     soup = BeautifulSoup(response, 'html.parser')
-#     national_site_container = soup.find_all('div', class_ = 'col-md-9 col-sm-9 col-xs-12 table-cell list_left')
-#
-#     for container in national_site_container:
-#
-#         # Name
-#         name = container.h3.text
-#         print(name)
-
-# with open ("nps_address.json", 'r') as f3:
-#     nps_address_json = json.load(f3)
-#
-#     soup2 = BeautifulSoup(response2, "html.parser")
-#     ## Address Street
-#     address_street_fndr = soup2.find(attrs={"itemprop": "streetAddress"})
-#     address_street = address_street_fndr.text
-#     print(address_street)
-
-    # print(nps_json)
-    # lng = str(coordinates[key_dict]["values"]["candidates"][0]["geometry"]["location"]["lng"])
-    # lat = str(coordinates[key_dict]["values"]["candidates"][0]["geometry"]["location"]["lat"])
-    # google_coordinates.location = lng+","+lat
+# plot_nearby_for_site("Tuskegee Airmen National Historic Site")
