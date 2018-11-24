@@ -8,6 +8,7 @@ import json
 import requests
 from datetime import datetime
 from collections import OrderedDict
+import plotly
 
 ######################
 #      SCRAPING      #
@@ -132,7 +133,7 @@ def google_coordinates(input, inputtype="textquery", fields="formatted_address,g
             google_coordinates.location = lat+","+lng
             print(google_coordinates.location)
         # print("Data in cache")
-        return data
+        return google_coordinates.location
     else:
         resp = requests.get(baseurl, params=params_diction)
         obj = json.loads(resp.text)
@@ -157,7 +158,7 @@ def google_nearby_places(location, radius=10000):
             nearbyplaces = json.load(f)
             for i in range(len(nearbyplaces[key_dict]["values"]["results"])):
                 nearby_places_lst.append(nearbyplaces[key_dict]["values"]["results"][i]["name"])
-            # print(nearby_places_lst)
+            print(nearby_places_lst)
         return data
     else:
         resp = requests.get(baseurl, params=params_diction)
@@ -222,7 +223,7 @@ def get_sites_for_state(state_abbr):
 ##          return an empty list
 def get_nearby_places(national_site):
     google_coordinates(national_site)
-    google_nearby_places(google_coordinates.location)
+    # google_nearby_places(google_coordinates.location)
     # return []
 
 ## Must plot all of the NationalSites listed for the state on nps.gov
@@ -233,7 +234,16 @@ def get_nearby_places(national_site):
 ## returns: nothing
 ## side effects: launches a plotly page in the web browser
 def plot_sites_for_state(state_abbr):
-    pass
+    national_sites_list = process(response)
+    for site in national_sites_list:
+        try:
+            full_site_name = site.name + " " + site.type
+            site_coord = google_coordinates(full_site_name)
+            print(site_coord)
+        except:
+            national_sites_list.remove(site)
+            print("Coordinates not found")
+
 
 ## Must plot up to 20 of the NearbyPlaces found using the Google Places API
 ## param: the NationalSite around which to search
@@ -277,10 +287,10 @@ process(response)
 
 
 ## TESTING GET NEARBY PLACES
-# z = get_nearby_places(NationalSite("National Lakeshore", "Sleeping Bear Dunes"))
+# z = get_nearby_places(NationalSite("National Monument", "Fort Stanwix"))
 # print(z)
 
-
+plot_sites_for_state(state_abbr)
 
 
 ## THIS IS JUNK BUT I'LL KEEP IT HERE
