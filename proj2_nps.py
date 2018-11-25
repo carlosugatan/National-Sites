@@ -10,6 +10,7 @@ from datetime import datetime
 from collections import OrderedDict
 import plotly
 import plotly.plotly as py
+import sys
 
 ######################
 #      SCRAPING      #
@@ -59,7 +60,7 @@ def process(response):
             response2 = cache_address.get(UID)
             if response2 == None:
                 response2 = requests.get(urls).text
-                cache_address.set(UID, response2, 1)
+                cache_address.set(UID, response2, 100)
             # get_address(response2)
 
             soup2 = BeautifulSoup(response2, "html.parser")
@@ -67,6 +68,7 @@ def process(response):
                 # ## Address Street
                 address_street_fndr = soup2.find(attrs={"itemprop": "streetAddress"})
                 process.address_street = address_street_fndr.text
+                process.address_street = process.address_street.replace('\n', '')
                 # print(process.address_street)
 
                 ## Address City
@@ -82,6 +84,7 @@ def process(response):
                 # ## Address ZIP
                 address_zip_fndr = soup2.find(attrs={"itemprop": "postalCode"})
                 process.address_zip = address_zip_fndr.text
+                process.address_zip = process.address_zip.strip()
                 # print(process.address_zip)
             except:
                 # print("No address found for {}".format(urls))
@@ -138,7 +141,7 @@ def google_coordinates(input, inputtype="textquery", fields="formatted_address,g
     else:
         resp = requests.get(baseurl, params=params_diction)
         obj = json.loads(resp.text)
-        c2.set(unique_rep, obj, 10)
+        c2.set(unique_rep, obj, 100)
         return obj
 
 def google_nearby_places(location, radius=10000):
@@ -159,12 +162,13 @@ def google_nearby_places(location, radius=10000):
             nearbyplaces = json.load(f)
             for i in range(len(nearbyplaces[key_dict]["values"]["results"])):
                 nearby_places_lst.append(nearbyplaces[key_dict]["values"]["results"][i]["name"])
+                print(nearbyplaces[key_dict]["values"]["results"][i]["name"])
             # print(nearby_places_lst)
         return nearby_places_lst
     else:
         resp = requests.get(baseurl, params=params_diction)
         obj = json.loads(resp.text)
-        c.set(unique_rep, obj, 10)
+        c.set(unique_rep, obj, 100)
         return obj
 
 # restaurant = google_coordinates("Sleeping Bear Dunes National Lakeshore")
@@ -190,9 +194,8 @@ class NationalSite():
         self.address_zip = process.address_zip
 
     def __str__(self):
-        return "{} ({}): {} {}, {} {}".format(self.name, self.type, self.address_street, self.address_city, self.address_state,self.address_zip)
-        # return "{} ({}) {}".format(self.name, self.type, self.address_city)
-        # return "{} ({})".format(self.name, self.type)
+        # return "{} ({}): {} {}, {} {}".format(self.name, self.type, self.address_street, self.address_city, self.address_state,self.address_zip)
+        return "{} {}".format(self.name, self.type)
 
     def __repr__(self):
         return "{} {}".format(self.name, self.type)
@@ -340,13 +343,13 @@ def plot_nearby_for_site(national_site):
     min_lon = 10000
     max_lon = -10000
 
-    for str_v in small_lat_vals:
+    for str_v in big_lat_vals:
         v = float(str_v)
         if v < min_lat:
             min_lat = v
         if v > max_lat:
             max_lat = v
-    for str_v in small_lon_vals:
+    for str_v in big_lon_vals:
         v = float(str_v)
         if v < min_lon:
             min_lon = v
@@ -411,29 +414,74 @@ def plot_nearby_for_site(national_site):
 ###################
 #     CONFIG      #
 ###################
+
+print("Hello! Interested in National Sites in the United States?")
+print("Please input state abbreviation to search up it's national sites")
 state_abbr = input("Please enter state abbr: ").lower()
-cache_file = "nps.json"
-site="nps.gov"
-topic="National Sites"
-cache = Cache(cache_file)
-# base = "https://www.nps.gov/state/mi/index.htm"
-base_org = "https://www.nps.gov/state/%%/index.htm"
-base = base_org.replace('%%', state_abbr)
+while state_abbr != "exit":
+    info = "Getting information about national site of %%..."
+    print(info.replace('%%', state_abbr.upper()))
+    print("***************************************************************")
+    cache_file = "nps.json"
+    site="nps.gov"
+    topic="National Sites"
+    cache = Cache(cache_file)
+    # base = "https://www.nps.gov/state/mi/index.htm"
+    base_org = "https://www.nps.gov/state/%%/index.htm"
+    base = base_org.replace('%%', state_abbr)
 
-######################
-#    RUN PROGRAM     #
-######################
-UID = create_id(site, topic)
-response = cache.get(UID)
-if response == None:
-    response = requests.get(base).text
-    cache.set(UID, response, 1)
-# process(response)
+    ######################
+    #    RUN PROGRAM     #
+    ######################
+    UID = create_id(site, topic)
+    response = cache.get(UID)
+    if response == None:
+        response = requests.get(base).text
+        cache.set(UID, response, 100)
+    process(response)
 
 
-## TESTING GET SITES FOR STATE
-# xy = get_sites_for_state(state_abbr)
-# print(xy)
+    ######################
+    #      CONSOLE       #
+    ######################
+
+    national_sites_list_console = get_sites_for_state(state_abbr)
+    national_site_message = "Here are the National Sites of %%:"
+    print(national_site_message.replace('%%', state_abbr.upper()))
+    print("_______________________________________________________________")
+    for each_national_site in national_sites_list_console:
+        print(each_national_site)
+    print("***************************************************************")
+    print("1: Look at these sites on a map")
+    print("2: Show nearby places of a national site")
+    choice1 = input("1 or 2?: ")
+
+    if choice1 == "1":
+        print("Browser will open up to show you the sites on a map...")
+        plot_sites_for_state(state_abbr)
+    elif choice1 == "2":
+        print()
+        choice2 = input("Please type a national site from the list above to show it's nearby places...: ")
+        string_choice2 = "Here are the nearby places near %%%:"
+        print(string_choice2.replace('%%%', choice2))
+        get_nearby_places(choice2)
+        print("***************************************************************")
+        string_choice3 = "Would you like to see a map of all nearby places near %%? (y/n) "
+        choice3 = input(string_choice3.replace('%%', choice2))
+        if choice3 == "y":
+            print("Browser will open up to show you the sites on a map...")
+            plot_nearby_for_site(choice2)
+        elif choice3 == "n":
+            print("Please input state abbreviation to search up it's national sites")
+            state_abbr = input("Please enter state abbr: ").lower()
+            process(response)
+        else:
+            print("Not a valid input")
+            sys.exit()
+    else:
+        print("Not a valid input")
+        
+
 
 
 ## TESTING NATIONAL SITES CLASS
@@ -442,9 +490,9 @@ if response == None:
 
 
 ## TESTING GET NEARBY PLACES
-# z = get_nearby_places(NationalSite("National Monument", "Fort Stanwix"))
+# z = get_nearby_places(NationalSite("National Lakeshore", "Sleeping Bear Dunes"))
 # print(z)
 
 # plot_sites_for_state(state_abbr)
 
-# plot_nearby_for_site("Tuskegee Airmen National Historic Site")
+# plot_nearby_for_site("Isle Royale National Park")
