@@ -1,10 +1,6 @@
-## proj_nps.py
-## Skeleton for Project 2, Fall 2018
-## ~~~ modify this file, but don't rename it ~~~
 from secrets import google_places_key
 from bs4 import BeautifulSoup
 from alternate_advanced_caching import Cache
-import json
 import requests
 from datetime import datetime
 from collections import OrderedDict
@@ -19,6 +15,7 @@ import sys
 def create_id(site, topic):
     return "{}_{}_{}.json".format(site, topic, str(datetime.now()).replace(' ', ''))
 
+## ID for getting sites
 def create_id_sites(urls):
     return "{}.json".format(urls, str(datetime.now()).replace(' ', ''))
 
@@ -27,13 +24,11 @@ def process(response):
     url_lst = []
     site_lst = []
 
-    ## use the `response` to create a BeautifulSoup object
     soup = BeautifulSoup(response, 'html.parser')
 
     national_site_container = soup.find_all('div', class_ = 'col-md-9 col-sm-9 col-xs-12 table-cell list_left')
 
     for container in national_site_container:
-
         # Name
         name = container.h3.text
         name_lst.append(name)
@@ -52,6 +47,7 @@ def process(response):
         url_lst.append(process.url)
         # print(url)
 
+        # Look at each URL and scrape that page
         for urls in url_lst:
             cache_file = "nps_address.json"
             cache_address = Cache(cache_file)
@@ -61,11 +57,10 @@ def process(response):
             if response2 == None:
                 response2 = requests.get(urls).text
                 cache_address.set(UID, response2, 100)
-            # get_address(response2)
 
             soup2 = BeautifulSoup(response2, "html.parser")
             try:
-                # ## Address Street
+                ## Address Street
                 address_street_fndr = soup2.find(attrs={"itemprop": "streetAddress"})
                 process.address_street = address_street_fndr.text
                 process.address_street = process.address_street.replace('\n', '')
@@ -76,33 +71,30 @@ def process(response):
                 process.address_city = address_city_fndr.text
                 # print(process.address_city)
 
-                # ## Address State
+                ## Address State
                 address_state_fndr = soup2.find(attrs={"itemprop": "addressRegion"})
                 process.address_state = address_state_fndr.text
                 # print(process.address_state)
 
-                # ## Address ZIP
+                ## Address ZIP
                 address_zip_fndr = soup2.find(attrs={"itemprop": "postalCode"})
                 process.address_zip = address_zip_fndr.text
                 process.address_zip = process.address_zip.strip()
                 # print(process.address_zip)
-            except:
+            except: # If address is not found
                 # print("No address found for {}".format(urls))
-                process.address_street = "None"
-                process.address_city = "None"
-                process.address_state = "None"
-                process.address_zip = "None"
+                process.address_street = "Not found"
+                process.address_city = "Not found"
+                process.address_state = "Not found"
+                process.address_zip = "Not found"
 
-        national_sites = NationalSite(type, name)
-        site_lst.append(national_sites)
-        # print(national_sites)
+        national_sites = NationalSite(type, name) # Create a new NationalSite instance
+        site_lst.append(national_sites) # Append each NationalSite instance to site_lst list
     return site_lst
-
 
 ######################
 #  GOOGLE PLACES API #
 ######################
-
 CACHE_FILE1 = "google_places.json"
 CACHE_FILE2 = "google_coordinates.json"
 c = Cache(CACHE_FILE1)
@@ -134,6 +126,7 @@ def google_coordinates(input, inputtype="textquery", fields="formatted_address,g
             coordinates = json.load(f)
             lng = str(coordinates[key_dict]["values"]["candidates"][0]["geometry"]["location"]["lng"])
             lat = str(coordinates[key_dict]["values"]["candidates"][0]["geometry"]["location"]["lat"])
+            # combines latitude and longitude
             google_coordinates.location = lat+","+lng
             # print(google_coordinates.location)
         # print("Data in cache")
@@ -171,18 +164,12 @@ def google_nearby_places(location, radius=10000):
         c.set(unique_rep, obj, 100)
         return obj
 
-# restaurant = google_coordinates("Sleeping Bear Dunes National Lakeshore")
-# restaurant = google_nearby_places(google_coordinates.location)
-# restaurant = google_nearby_places("-33.8599358,151.2090295")
-
-
 ######################
 #   NATIONAL SITES   #
 ######################
 
 class NationalSite():
     def __init__(self, type, name):
-    # def __init__(self, name):
         self.type = type
         self.name = name
         self.description = process.desc
@@ -215,10 +202,6 @@ class NearbyPlace():
 ##        for the state at nps.gov
 def get_sites_for_state(state_abbr):
     return process(response) # returns NationalSites instances of that state
-    # print(name_lst)
-    # return process(response)
-    # return []
-
 
 ## Must return the list of NearbyPlaces for the specific NationalSite
 ## param: a NationalSite object
@@ -236,6 +219,7 @@ def get_nearby_places(national_site):
 ## param: the 2-letter state abbreviation
 ## returns: nothing
 ## side effects: launches a plotly page in the web browser
+# Code from Plotly guide provided for Project 2
 def plot_sites_for_state(state_abbr):
     lat_vals = []
     lon_vals = []
@@ -285,8 +269,9 @@ def plot_sites_for_state(state_abbr):
             text = text_vals,
             mode = 'markers',
             marker = dict(
-                size = 8,
+                size = 12,
                 symbol = 'star',
+                color = "red"
             ))]
 
     layout = dict(
@@ -298,11 +283,11 @@ def plot_sites_for_state(state_abbr):
                 lonaxis = dict(range = lon_axis),
                 showland = True,
                 landcolor = "rgb(250, 250, 250)",
-                subunitcolor = "rgb(100, 217, 217)",
+                subunitcolor = "rgb(0, 76, 14)",
                 center = {'lat': center_lat, 'lon': center_lon },
                 countrycolor = "rgb(217, 100, 217)",
                 countrywidth = 3,
-                subunitwidth = 3
+                subunitwidth = 2
             ),
         )
 
@@ -315,6 +300,7 @@ def plot_sites_for_state(state_abbr):
 ## returns: nothing
 ## side effects: launches a plotly page in the web browser
 # def plot_nearby_for_site(site_object):
+# Code from Plotly guide provided for Project 2
 def plot_nearby_for_site(national_site):
     big_lat_vals = []
     big_lon_vals = []
@@ -333,7 +319,9 @@ def plot_nearby_for_site(national_site):
             small_lat_vals.append(nearby_coord[0])
             small_lon_vals.append(nearby_coord[1])
             small_text_vals.append(places)
+            print(places)
             # print(small_lat_vals)
+        # if coordinates are not found, remove it from the list
         except:
             nearby_places.remove(places)
             # print("Coordinates not found")
@@ -370,7 +358,7 @@ def plot_nearby_for_site(national_site):
             text = big_text_vals,
             mode = 'markers',
             marker = dict(
-                size = 15,
+                size = 18,
                 symbol = 'star',
                 color = "red"
             ))
@@ -383,7 +371,7 @@ def plot_nearby_for_site(national_site):
             text = small_text_vals,
             mode = 'markers',
             marker = dict(
-                size = 4,
+                size = 5,
                 symbol = 'circle',
                 color = "blue"
             ))
@@ -399,7 +387,7 @@ def plot_nearby_for_site(national_site):
                 lonaxis = dict(range = lon_axis),
                 showland = True,
                 landcolor = "rgb(250, 250, 250)",
-                subunitcolor = "rgb(100, 217, 217)",
+                subunitcolor = "rgb(0, 76, 14)",
                 center = {'lat': center_lat, 'lon': center_lon },
                 countrycolor = "rgb(217, 100, 217)",
                 countrywidth = 3,
@@ -410,11 +398,9 @@ def plot_nearby_for_site(national_site):
     fig = dict( data=data, layout=layout )
     py.plot( fig, validate=False, filename='national-sites-nearby-places' )
 
-
 ###################
 #     CONFIG      #
 ###################
-
 print("Hello! Interested in National Sites in the United States?")
 print("Please input state abbreviation to search up it's national sites")
 state_abbr = input("Please enter state abbr: ").lower()
@@ -444,7 +430,7 @@ while state_abbr != "exit":
     ######################
     #      CONSOLE       #
     ######################
-
+    # Welcome message
     national_sites_list_console = get_sites_for_state(state_abbr)
     national_site_message = "Here are the National Sites of %%:"
     print(national_site_message.replace('%%', state_abbr.upper()))
@@ -452,47 +438,40 @@ while state_abbr != "exit":
     for each_national_site in national_sites_list_console:
         print(each_national_site)
     print("***************************************************************")
+
+    # Menu 1: Show sites on map or show nearby places
     print("1: Look at these sites on a map")
     print("2: Show nearby places of a national site")
+    print("Type 'exit' to quit the program")
     choice1 = input("1 or 2?: ")
-
+    # Choice 1 from Menu 1
     if choice1 == "1":
         print("Browser will open up to show you the sites on a map...")
         plot_sites_for_state(state_abbr)
     elif choice1 == "2":
         print()
+        # Menu 2: Nearby places of a particular site
         choice2 = input("Please type a national site from the list above to show it's nearby places...: ")
         string_choice2 = "Here are the nearby places near %%%:"
         print(string_choice2.replace('%%%', choice2))
+        print("_______________________________________________________________")
         get_nearby_places(choice2)
         print("***************************************************************")
+        # Menu 3: Map nearby places of a National Site
         string_choice3 = "Would you like to see a map of all nearby places near %%? (y/n) "
         choice3 = input(string_choice3.replace('%%', choice2))
         if choice3 == "y":
             print("Browser will open up to show you the sites on a map...")
             plot_nearby_for_site(choice2)
         elif choice3 == "n":
+            # Restart to state abbr menu
             print("Please input state abbreviation to search up it's national sites")
+            print("Type 'exit' to quit the program")
             state_abbr = input("Please enter state abbr: ").lower()
             process(response)
         else:
-            print("Not a valid input")
+            # print("Not a valid input")
             sys.exit()
     else:
-        print("Not a valid input")
-        
-
-
-
-## TESTING NATIONAL SITES CLASS
-# national_sites = NationalSite("National Lakeshore", "Sleeping Bear Dunes")
-# print(national_sites.type)
-
-
-## TESTING GET NEARBY PLACES
-# z = get_nearby_places(NationalSite("National Lakeshore", "Sleeping Bear Dunes"))
-# print(z)
-
-# plot_sites_for_state(state_abbr)
-
-# plot_nearby_for_site("Isle Royale National Park")
+        # print("Not a valid input")
+        sys.exit()
